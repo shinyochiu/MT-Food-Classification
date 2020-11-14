@@ -101,6 +101,8 @@ def train_model(img_encoder, food_classifier, train_loader, valid_loader, criter
 def test_model(img_encoder, food_classifier, test_loader):
     print("testing")
     food_classifier.train(False)
+    food_classifier.load_checkpoint()
+    img_encoder.load_checkpoint()
     with open(arglist.data_dir+'test.csv', 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['id', 'predicted'])
