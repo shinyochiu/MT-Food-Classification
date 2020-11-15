@@ -9,6 +9,7 @@ import models
 import os
 import numpy as np
 import csv
+import data_reorganization
 from models import MTFoodClassify, MTFoodFeature
 
 def parse_args():
@@ -132,6 +133,9 @@ if __name__ == '__main__':
     input_size = 224
 
     ## data preparation
+    data_reorganization.reorganize_data(data_path='../data', image_folder='train')
+    data_reorganization.reorganize_data(data_path='../data', image_folder='val')
+    data_reorganization.reorganize_data(data_path='../data', image_folder='test')
     train_loader, valid_loader, test_loader = data.load_data(data_dir=arglist.data_dir, input_size=input_size, batch_size=arglist.batch_size)
     ## model initialization
     img_encoder = MTFoodFeature(arglist.architecture, arglist.encoder_dir)
