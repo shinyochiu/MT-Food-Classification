@@ -48,9 +48,10 @@ class MTFoodClassify(nn.Module):
 
         self.initialization()
 
-        self.optimizer = optim.Adam(self.parameters(), lr=lr)
+        self.optimizer = optim.SGD(self.parameters(), lr=lr, momentum=0.9)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         self.to(self.device)
+        print("image classifying on device: ", self.device)
 
     def initialization(self):
         nn.init.xavier_uniform_(self.fc1.weight,
@@ -70,7 +71,7 @@ class MTFoodClassify(nn.Module):
 
     def load_checkpoint(self):
         print("..loading checkpoint...")
-        self.load_state_dict(T.load(self.model_dir) + 'model')
+        self.load_state_dict(T.load(self.model_dir + 'model'))
 
 class MTFoodFeature(nn.Module):
     def __init__(self, architecture, encoder_dir):
@@ -81,6 +82,7 @@ class MTFoodFeature(nn.Module):
 
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         self.to(self.device)
+        print("feature extracting on device: ", self.device)
 
     def initialization(self):
         net_in = getattr(models, self.architecture)(pretrained=True)
@@ -105,8 +107,13 @@ class MTFoodFeature(nn.Module):
               .format(os.path.basename(__file__), self.architecture, os.path.basename(FEATURES[self.architecture])))
         self.image_encoder.load_state_dict(model_zoo.load_url(FEATURES[self.architecture], model_dir=self.encoder_dir))
 
+        # Freeze those weights
+        for p in self.image_encoder.parameters():
+            p.requires_grad = False
+
     def forward(self, img_inputs):
         img_features = self.image_encoder(img_inputs)
+        img_features = img_features.view(img_features.size(0), -1)
         return img_features
 
     def save_checkpoint(self):

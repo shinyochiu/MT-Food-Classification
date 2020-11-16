@@ -19,12 +19,12 @@ def parse_args():
                         help="directory in which training data ")
     parser.add_argument("--test_data_dir", type=str, default='',
                         help="directory in which training data ")
-    parser.add_argument("--encoder_dir", type=str, default="./encoder/", help="directory in which pretrained feature extract model should be saved")
-    parser.add_argument("--model_dir", type=str, default="./model/", help="directory in which training state and model should be saved")
-    parser.add_argument("--num_epochs", type=int, default=1000, help="number of training epochs")
-    parser.add_argument("--num_classes", type=int, default=1000, help="number of data classes")
-    parser.add_argument("--lr", type=float, default=1e-3, help="learning rate for Adam optimizer")
-    parser.add_argument("--batch_size", type=int, default=64, help="number of episodes to optimize at the same time")
+    parser.add_argument("--encoder_dir", type=str, default="../encoder/", help="directory in which pretrained feature extract model should be saved")
+    parser.add_argument("--model_dir", type=str, default="../model/", help="directory in which training state and model should be saved")
+    parser.add_argument("--num_epochs", type=int, default=50, help="number of training epochs")
+    parser.add_argument("--num_classes", type=int, default=10, help="number of data classes")
+    parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for Adam optimizer")
+    parser.add_argument("--batch_size", type=int, default=32, help="number of episodes to optimize at the same time")
     parser.add_argument("--input_size", type=int, default=2048, help="number of inputs to the classifier")
     parser.add_argument("--layer1_size", type=int, default=64, help="number of units in the classifier")
 
@@ -33,7 +33,6 @@ def parse_args():
 arglist = parse_args()
 
 def extract_feat(img_encoder, inputs):
-    img_encoder.train(False)
     inputs = inputs.to(img_encoder.device)
     outputs = img_encoder(inputs)
     return outputs
@@ -42,7 +41,6 @@ def train_model(img_encoder, food_classifier, train_loader, valid_loader, criter
     from tqdm import tqdm
 
     def train(food_classifier, train_loader, criterion):
-        food_classifier.train(True)
         total_loss = 0.0
         total_correct = 0
         for inputs, labels, _ in tqdm(train_loader, desc="train"):
@@ -50,7 +48,7 @@ def train_model(img_encoder, food_classifier, train_loader, valid_loader, criter
             labels = labels.to(food_classifier.device)
             food_classifier.optimizer.zero_grad()
             features = extract_feat(img_encoder, inputs)
-            features = torch.reshape(features, (-1, arglist.input_size))
+            #features = torch.reshape(features, (-1, arglist.input_size))
             outputs = food_classifier(features)
             loss = criterion(outputs, labels)
             _, predictions = torch.topk(outputs, 3)
@@ -66,7 +64,6 @@ def train_model(img_encoder, food_classifier, train_loader, valid_loader, criter
         return epoch_loss, epoch_acc.item()
 
     def valid(food_classifier, valid_loader, criterion):
-        food_classifier.train(False)
         total_loss = 0.0
         total_correct = 0
 
@@ -75,7 +72,7 @@ def train_model(img_encoder, food_classifier, train_loader, valid_loader, criter
             labels = labels.to(food_classifier.device)
             food_classifier.optimizer.zero_grad()
             features = extract_feat(img_encoder, inputs)
-            features = torch.reshape(features, (-1, arglist.input_size))
+            #features = torch.reshape(features, (-1, arglist.input_size))
             outputs = food_classifier(features)
             loss = criterion(outputs, labels)
             _, predictions = torch.topk(outputs, 3)
@@ -101,7 +98,6 @@ def train_model(img_encoder, food_classifier, train_loader, valid_loader, criter
 
 def test_model(img_encoder, food_classifier, test_loader):
     print("testing")
-    food_classifier.train(False)
     food_classifier.load_checkpoint()
     img_encoder.load_checkpoint()
     with open(arglist.data_dir+'test.csv', 'w', newline='') as outfile:
@@ -111,7 +107,7 @@ def test_model(img_encoder, food_classifier, test_loader):
             inputs = inputs.to(food_classifier.device)
             food_classifier.optimizer.zero_grad()
             features = extract_feat(img_encoder, inputs)
-            features = torch.reshape(features, (-1, arglist.input_size))
+            #features = torch.reshape(features, (-1, arglist.input_size))
             outputs = food_classifier(features)
             _, predictions = torch.topk(outputs, 3)
             predictions = predictions.cpu().numpy()
