@@ -21,8 +21,8 @@ def parse_args():
                         help="directory in which training data ")
     parser.add_argument("--encoder_dir", type=str, default="../encoder/", help="directory in which pretrained feature extract model should be saved")
     parser.add_argument("--model_dir", type=str, default="../model/", help="directory in which training state and model should be saved")
-    parser.add_argument("--num_epochs", type=int, default=50, help="number of training epochs")
-    parser.add_argument("--num_classes", type=int, default=10, help="number of data classes")
+    parser.add_argument("--num_epochs", type=int, default=1, help="number of training epochs")
+    parser.add_argument("--num_classes", type=int, default=1000, help="number of data classes")
     parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for Adam optimizer")
     parser.add_argument("--batch_size", type=int, default=32, help="number of episodes to optimize at the same time")
     parser.add_argument("--input_size", type=int, default=2048, help="number of inputs to the classifier")
@@ -33,6 +33,7 @@ def parse_args():
 arglist = parse_args()
 
 def extract_feat(img_encoder, inputs):
+    img_encoder.eval()
     inputs = inputs.to(img_encoder.device)
     outputs = img_encoder(inputs)
     return outputs
@@ -43,6 +44,7 @@ def train_model(img_encoder, food_classifier, train_loader, valid_loader, criter
     def train(food_classifier, train_loader, criterion):
         total_loss = 0.0
         total_correct = 0
+        food_classifier.train()
         for inputs, labels, _ in tqdm(train_loader, desc="train"):
             inputs = inputs.to(food_classifier.device)
             labels = labels.to(food_classifier.device)
@@ -66,7 +68,7 @@ def train_model(img_encoder, food_classifier, train_loader, valid_loader, criter
     def valid(food_classifier, valid_loader, criterion):
         total_loss = 0.0
         total_correct = 0
-
+        food_classifier.eval()
         for inputs, labels, _ in tqdm(valid_loader, desc="valid"):
             inputs = inputs.to(food_classifier.device)
             labels = labels.to(food_classifier.device)
@@ -100,6 +102,8 @@ def test_model(img_encoder, food_classifier, test_loader):
     print("testing")
     food_classifier.load_checkpoint()
     img_encoder.load_checkpoint()
+    food_classifier.eval()
+    img_encoder.eval()
     with open(arglist.data_dir+'test.csv', 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['id', 'predicted'])
@@ -135,6 +139,7 @@ if __name__ == '__main__':
     train_loader, valid_loader, test_loader = data.load_data(data_dir=arglist.data_dir, input_size=input_size, batch_size=arglist.batch_size)
     ## model initialization
     img_encoder = MTFoodFeature(arglist.architecture, arglist.encoder_dir)
+    img_encoder.eval()
     #img_encoder.cuda()
     food_classifier = MTFoodClassify(lr=arglist.lr, inpt_dims=arglist.input_size, fc1_dims=arglist.layer1_size, out_dims=arglist.num_classes, model_dir=arglist.model_dir)
     #food_classifier.cuda()
