@@ -95,11 +95,17 @@ class MTFoodClassify(nn.Module):
 
     def save_checkpoint(self):
         print("...saving checkpoint....")
-        T.save(self.state_dict(), self.model_dir + 'model')
+        T.save({'image_encoder_state_dict': self.image_encoder.state_dict(),
+                'out_state_dict': self.out.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),},
+               self.model_dir + 'model')
 
     def load_checkpoint(self):
         print("..loading checkpoint...")
-        self.load_state_dict(T.load(self.model_dir + 'model'))
+        ckpt = T.load(self.model_dir + 'model')
+        self.image_encoder.load_state_dict(ckpt['image_encoder_state_dict'])
+        self.out.load_state_dict(ckpt['out_state_dict'])
+        self.optimizer.load_state_dict(ckpt['optimizer_state_dict'])
 
 class MTFoodFeature(nn.Module):
     def __init__(self, architecture, encoder_dir):
