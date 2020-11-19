@@ -144,7 +144,7 @@ if __name__ == '__main__':
     img_encoder = MTFoodFeature(arglist.architecture, arglist.encoder_dir)
     img_encoder.eval()
     #img_encoder.cuda()
-    food_classifier = MTFoodClassify(lr=arglist.lr, inpt_dims=arglist.input_size, fc1_dims=arglist.layer1_size, out_dims=arglist.num_classes, model_dir=arglist.model_dir)
+    food_classifier = MTFoodClassify(lr=arglist.lr, inpt_dims=arglist.input_size, fc1_dims=arglist.layer1_size, out_dims=num_classes, architecture=arglist.architecture, encoder_dir=arglist.encoder_dir, model_dir=arglist.model_dir)
     #food_classifier.cuda()
 
     ## loss function
