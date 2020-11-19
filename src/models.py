@@ -43,69 +43,58 @@ class MTFoodClassify(nn.Module):
         self.encoder_dir = os.path.join(encoder_dir)
         self.model_dir = os.path.join(model_dir)
 
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-        self.fc1 = nn.Linear(self.inpt_dims, self.fc1_dims)
-        # self.bn1 = nn.LayerNorm(self.fc1_dims)
-
-        #self.out = nn.Linear(self.fc1_dims, self.out_dims)
+        if self.architecture == 'resnet18':
+            model_ft = models.resnet18(pretrained=True)
+            self.dim = 512
+        if self.architecture == 'resnet50':
+            self.model = models.resnet50(pretrained=True)
+        if self.architecture == 'resnet101':
+            self.model = models.resnet101(pretrained=True)
+        if self.architecture == 'resnet152':
+            self.model = models.resnet152(pretrained=True)
+        mod = list(model_ft.children())
+        mod.pop()
+        self.features = nn.Sequential(*mod)
+        self.model = models.resnet50(pretrained=True)
+        self.fc1 = nn.Linear(2048, 2048)
+        self.fc2 = nn.Linear(2048, self.out_dims)
+        self.dropout = nn.Dropout(0.3)
         self.out = nn.Linear(self.inpt_dims, self.out_dims)
 
-        self.initialization()
+        #self.initialization()
 
         self.optimizer = optim.SGD(self.parameters(), lr=lr, momentum=0.9)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         self.to(self.device)
         print("image classifying on device: ", self.device)
 
-    def initialization(self):
-        net_in = getattr(models, self.architecture)(pretrained=True)
-        # take only convolutions for features,
-        # always ends with ReLU to make last activations non-negative
-        if self.architecture.startswith('alexnet'):
-            features = list(net_in.features.children())[:-1]
-        elif self.architecture.startswith('vgg'):
-            features = list(net_in.features.children())[:-1]
-        elif self.architecture.startswith('resnet'):
-            features = list(net_in.children())[:-1]
-        elif self.architecture.startswith('densenet'):
-            features = list(net_in.features.children())
-            features.append(nn.ReLU(inplace=True))
-        elif self.architecture.startswith('squeezenet'):
-            features = list(net_in.features.children())
-        else:
-            raise ValueError('Unsupported or unknown architecture: {}!'.format(self.architecture))
-
-        self.image_encoder = nn.Sequential(*features)
-        print(">> {}: for '{}' custom pretrained features '{}' are used"
-              .format(os.path.basename(__file__), self.architecture, os.path.basename(FEATURES[self.architecture])))
-        self.image_encoder.load_state_dict(model_zoo.load_url(FEATURES[self.architecture], model_dir=self.encoder_dir))
-
-    def forward(self, img_inputs, keep_gradients=False):
+    def forward(self, img_inputs):
         #out = self.fc1(img_inputs)
         #out = F.leaky_relu(out)
-        img_features = self.image_encoder(img_inputs)
-        img_features = img_features.view(img_features.size(0), -1)
-        out = self.out(img_features)
-        return out
+        x = self.model.conv1(img_inputs)
+        x = self.model.bn1(x)
+        x = self.model.relu(x)
+        x = self.model.maxpool(x)
+
+        x = self.model.layer1(x)
+        x = self.model.layer2(x)
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+        x = self.model.avgpool(x)
+
+        x = x.view(x.size(0), -1)
+        x = nn.functional.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = self.fc2(x)
+        return x
 
     def save_checkpoint(self):
         print("...saving checkpoint....")
-        T.save({'image_encoder_state_dict': self.image_encoder.state_dict(),
-                'out_state_dict': self.out.state_dict(),
-                'optimizer_state_dict': self.optimizer.state_dict(),},
-               self.model_dir + 'model')
+        T.save(self.state_dict(), self.model_dir + 'model')
 
     def load_checkpoint(self):
         print("..loading checkpoint...")
-        ckpt = T.load(self.model_dir + 'model')
-        self.image_encoder.load_state_dict(ckpt['image_encoder_state_dict'])
-        self.out.load_state_dict(ckpt['out_state_dict'])
-        self.optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+        self.load_state_dict(T.load(self.model_dir + 'model'))
 
 class MTFoodFeature(nn.Module):
     def __init__(self, architecture, encoder_dir):
