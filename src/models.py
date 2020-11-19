@@ -31,7 +31,7 @@ def label2onehot(labels, pad_value):
     return one_hot
 
 class MTFoodClassify(nn.Module):
-    def __init__(self, lr, inpt_dims, fc1_dims, out_dims, model_dir=''):
+    def __init__(self, lr, inpt_dims, fc1_dims, out_dims, architecture, encoder_dir, model_dir=''):
 
         super(MTFoodClassify, self).__init__()
 
@@ -39,12 +39,21 @@ class MTFoodClassify(nn.Module):
         self.inpt_dims = inpt_dims
         self.fc1_dims = fc1_dims
         self.out_dims = out_dims
+        self.architecture = architecture
+        self.encoder_dir = os.path.join(encoder_dir)
         self.model_dir = os.path.join(model_dir)
 
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
         self.fc1 = nn.Linear(self.inpt_dims, self.fc1_dims)
         # self.bn1 = nn.LayerNorm(self.fc1_dims)
 
-        self.out = nn.Linear(self.fc1_dims, self.out_dims)
+        #self.out = nn.Linear(self.fc1_dims, self.out_dims)
+        self.out = nn.Linear(self.inpt_dims, self.out_dims)
 
         self.initialization()
 
@@ -54,16 +63,35 @@ class MTFoodClassify(nn.Module):
         print("image classifying on device: ", self.device)
 
     def initialization(self):
-        nn.init.xavier_uniform_(self.fc1.weight,
-                                gain=nn.init.calculate_gain('leaky_relu'))
-        nn.init.xavier_uniform_(self.out.weight,
-                                gain=nn.init.calculate_gain('leaky_relu'))
+        net_in = getattr(models, self.architecture)(pretrained=True)
+        # take only convolutions for features,
+        # always ends with ReLU to make last activations non-negative
+        if self.architecture.startswith('alexnet'):
+            features = list(net_in.features.children())[:-1]
+        elif self.architecture.startswith('vgg'):
+            features = list(net_in.features.children())[:-1]
+        elif self.architecture.startswith('resnet'):
+            features = list(net_in.children())[:-1]
+        elif self.architecture.startswith('densenet'):
+            features = list(net_in.features.children())
+            features.append(nn.ReLU(inplace=True))
+        elif self.architecture.startswith('squeezenet'):
+            features = list(net_in.features.children())
+        else:
+            raise ValueError('Unsupported or unknown architecture: {}!'.format(self.architecture))
+
+        self.image_encoder = nn.Sequential(*features)
+        print(">> {}: for '{}' custom pretrained features '{}' are used"
+              .format(os.path.basename(__file__), self.architecture, os.path.basename(FEATURES[self.architecture])))
+        self.image_encoder.load_state_dict(model_zoo.load_url(FEATURES[self.architecture], model_dir=self.encoder_dir))
 
     def forward(self, img_inputs, keep_gradients=False):
-        out = self.fc1(img_inputs)
-        out = F.leaky_relu(out)
-        out = self.out(out)
-        return F.softmax(out, dim=-1)
+        #out = self.fc1(img_inputs)
+        #out = F.leaky_relu(out)
+        img_features = self.image_encoder(img_inputs)
+        img_features = img_features.view(img_features.size(0), -1)
+        out = self.out(img_features)
+        return out
 
     def save_checkpoint(self):
         print("...saving checkpoint....")
@@ -108,8 +136,8 @@ class MTFoodFeature(nn.Module):
         self.image_encoder.load_state_dict(model_zoo.load_url(FEATURES[self.architecture], model_dir=self.encoder_dir))
 
         # Freeze those weights
-        for p in self.image_encoder.parameters():
-            p.requires_grad = False
+        '''for p in self.image_encoder.parameters():
+            p.requires_grad = False'''
 
     def forward(self, img_inputs):
         img_features = self.image_encoder(img_inputs)
