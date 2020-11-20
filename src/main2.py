@@ -12,6 +12,8 @@ import csv
 import data_reorganization
 from models import MTFoodClassify, MTFoodFeature
 from datetime import datetime
+from tqdm import tqdm
+
 def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch Food Image Retrieval Training')
     parser.add_argument('--architecture', type=str, default='resnet101')
@@ -39,17 +41,54 @@ def extract_feat(img_encoder, inputs):
     outputs = img_encoder(inputs)
     return outputs
 
-def train_model(food_classifier, train_loader, valid_loader, test_loader, criterion, num_epochs=20):
-    from tqdm import tqdm
+def train(classifier, loader, crit, epoch):
+    total_loss = 0.0
+    total_correct = 0
+    classifier.train()
+    with open(arglist.data_dir + 'train_epoch_{}'.format(epoch) + '.csv', 'w', newline='') as outfile:
+        writer = csv.writer(outfile)
+        writer.writerow(['id', 'predicted'])
+        for inputs, labels, paths in tqdm(loader, desc="train"):
+            inputs = inputs.to(classifier.device)
+            labels = labels.to(classifier.device)
+            classifier.optimizer.zero_grad()
+            #features = extract_feat(img_encoder, inputs)
+            #features = torch.reshape(features, (-1, arglist.input_size))
+            outputs = classifier(inputs)
+            loss = crit(outputs, labels)
+            pred = torch.softmax(outputs, dim=-1)
+            #_, predictions = torch.topk(outputs, 3, dim=-1)
+            _, predictions = torch.topk(pred, 3, dim=-1)
+            loss.backward()
+            classifier.optimizer.step()
 
-    def train(classifier, loader, crit):
-        total_loss = 0.0
-        total_correct = 0
-        classifier.train()
-        with open(arglist.data_dir + 'train_epoch_{}'.format(epoch) + '.csv', 'w', newline='') as outfile:
-            writer = csv.writer(outfile)
-            writer.writerow(['id', 'predicted'])
-            for inputs, labels, paths in tqdm(loader, desc="train"):
+            total_loss += loss.item() * inputs.size(0)
+            label = torch.reshape(labels.data, (labels.data.size()[0], 1))
+            total_correct += torch.sum(label == predictions)
+            predictions = predictions.cpu().numpy()
+
+            for i in range(len(predictions)):
+                top3 = ""
+                path = paths[i][paths[i].find("train\\"):paths[i].find(".jpg") + 4]
+                for j in range(len(predictions[i])):
+                    top3 += str(predictions[i][j])
+                    if j < len(predictions[i]) - 1:
+                        top3 += " "
+                writer.writerow([path, top3])
+
+        epoch_loss = total_loss / len(loader.dataset)
+        epoch_acc = total_correct.double() / len(loader.dataset)
+    return epoch_loss, epoch_acc.item()
+
+def valid(classifier, loader, crit, epoch):
+    total_loss = 0.0
+    total_correct = 0
+    classifier.eval()
+    with open(arglist.data_dir + 'valid_epoch_{}'.format(epoch) + '.csv', 'w', newline='') as outfile:
+        writer = csv.writer(outfile)
+        writer.writerow(['id', 'predicted'])
+        with torch.no_grad():
+            for inputs, labels, paths in tqdm(loader, desc="valid"):
                 inputs = inputs.to(classifier.device)
                 labels = labels.to(classifier.device)
                 classifier.optimizer.zero_grad()
@@ -60,104 +99,65 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                 pred = torch.softmax(outputs, dim=-1)
                 #_, predictions = torch.topk(outputs, 3, dim=-1)
                 _, predictions = torch.topk(pred, 3, dim=-1)
-                loss.backward()
-                classifier.optimizer.step()
-
                 total_loss += loss.item() * inputs.size(0)
                 label = torch.reshape(labels.data, (labels.data.size()[0], 1))
                 total_correct += torch.sum(label == predictions)
                 predictions = predictions.cpu().numpy()
-
                 for i in range(len(predictions)):
                     top3 = ""
-                    path = paths[i][paths[i].find("train\\"):paths[i].find(".jpg") + 4]
+                    path = paths[i][paths[i].find("val\\"):paths[i].find(".jpg") + 4]
                     for j in range(len(predictions[i])):
                         top3 += str(predictions[i][j])
                         if j < len(predictions[i]) - 1:
                             top3 += " "
                     writer.writerow([path, top3])
+                writer.writerow([path, top3])
+        epoch_loss = total_loss / len(loader.dataset)
+        epoch_acc = total_correct.double() / len(loader.dataset)
+    return epoch_loss, epoch_acc.item()
 
-            epoch_loss = total_loss / len(loader.dataset)
-            epoch_acc = total_correct.double() / len(loader.dataset)
-        return epoch_loss, epoch_acc.item()
-
-    def valid(classifier, loader, crit):
-        total_loss = 0.0
-        total_correct = 0
-        classifier.eval()
-        with open(arglist.data_dir + 'valid_epoch_{}'.format(epoch) + '.csv', 'w', newline='') as outfile:
-            writer = csv.writer(outfile)
-            writer.writerow(['id', 'predicted'])
-            with torch.no_grad():
-                for inputs, labels, paths in tqdm(loader, desc="valid"):
-                    inputs = inputs.to(classifier.device)
-                    labels = labels.to(classifier.device)
-                    classifier.optimizer.zero_grad()
-                    #features = extract_feat(img_encoder, inputs)
-                    #features = torch.reshape(features, (-1, arglist.input_size))
-                    outputs = classifier(inputs)
-                    loss = crit(outputs, labels)
-                    pred = torch.softmax(outputs, dim=-1)
-                    #_, predictions = torch.topk(outputs, 3, dim=-1)
-                    _, predictions = torch.topk(pred, 3, dim=-1)
-                    total_loss += loss.item() * inputs.size(0)
-                    label = torch.reshape(labels.data, (labels.data.size()[0], 1))
-                    total_correct += torch.sum(label == predictions)
-                    predictions = predictions.cpu().numpy()
-                    for i in range(len(predictions)):
-                        top3 = ""
-                        path = paths[i][paths[i].find("val\\"):paths[i].find(".jpg") + 4]
-                        for j in range(len(predictions[i])):
-                            top3 += str(predictions[i][j])
-                            if j < len(predictions[i]) - 1:
-                                top3 += " "
-                        writer.writerow([path, top3])
+def test(classifier, loader, best_acc, epoch):
+    print("testing")
+    # food_classifier.load_checkpoint()
+    # img_encoder.load_checkpoint()
+    classifier.eval()
+    # img_encoder.eval()
+    with open(arglist.data_dir + 'test_{}_epoch_{}'.format(str(int(100*best_acc)), str(epoch)) + '.csv', 'w', newline='') as outfile:
+        writer = csv.writer(outfile)
+        writer.writerow(['id', 'predicted'])
+        with torch.no_grad():
+            for inputs, labels, paths in tqdm(loader, desc="test"):
+                inputs = inputs.to(classifier.device)
+                classifier.optimizer.zero_grad()
+                # features = extract_feat(img_encoder, inputs)
+                # features = torch.reshape(features, (-1, arglist.input_size))
+                outputs = classifier(inputs)
+                pred = torch.softmax(outputs, dim=-1)
+                #_, predictions = torch.topk(outputs, 3, dim=-1)
+                _, predictions = torch.topk(pred, 3, dim=-1)
+                predictions = predictions.cpu().numpy()
+                for i in range(len(predictions)):
+                    top3 = ""
+                    path = paths[i][paths[i].find("test_"):paths[i].find(".jpg") + 4]
+                    for j in range(len(predictions[i])):
+                        top3 += str(predictions[i][j])
+                        if j < len(predictions[i]) - 1:
+                            top3 += " "
                     writer.writerow([path, top3])
-            epoch_loss = total_loss / len(loader.dataset)
-            epoch_acc = total_correct.double() / len(loader.dataset)
-        return epoch_loss, epoch_acc.item()
+                writer.writerow([path, top3])
 
-    def test(classifier, loader):
-        print("testing")
-        # food_classifier.load_checkpoint()
-        # img_encoder.load_checkpoint()
-        classifier.eval()
-        # img_encoder.eval()
-        with open(arglist.data_dir + 'test_{}_epoch_{}'.format(str(int(100*best_acc)), str(epoch)) + '.csv', 'w', newline='') as outfile:
-            writer = csv.writer(outfile)
-            writer.writerow(['id', 'predicted'])
-            with torch.no_grad():
-                for inputs, labels, paths in tqdm(loader, desc="test"):
-                    inputs = inputs.to(classifier.device)
-                    classifier.optimizer.zero_grad()
-                    # features = extract_feat(img_encoder, inputs)
-                    # features = torch.reshape(features, (-1, arglist.input_size))
-                    outputs = classifier(inputs)
-                    pred = torch.softmax(outputs, dim=-1)
-                    #_, predictions = torch.topk(outputs, 3, dim=-1)
-                    _, predictions = torch.topk(pred, 3, dim=-1)
-                    predictions = predictions.cpu().numpy()
-                    for i in range(len(predictions)):
-                        top3 = ""
-                        path = paths[i][paths[i].find("test_"):paths[i].find(".jpg") + 4]
-                        for j in range(len(predictions[i])):
-                            top3 += str(predictions[i][j])
-                            if j < len(predictions[i]) - 1:
-                                top3 += " "
-                        writer.writerow([path, top3])
-                    writer.writerow([path, top3])
-
+def train_model(food_classifier, train_loader, valid_loader, test_loader, criterion, num_epochs=20):
     best_acc = 0.0
     for epoch in tqdm(range(num_epochs), desc="epoch", position=0, leave=True):
         #print('epoch:{:d}/{:d}'.format(epoch, num_epochs))
         #print('*' * 100)
-        train_loss, train_acc = train(food_classifier, train_loader, criterion)
+        train_loss, train_acc = train(food_classifier, train_loader, criterion, epoch)
         tqdm.write("training loss: {:.4f}, acc: {:.4f}".format(train_loss, train_acc))
-        valid_loss, valid_acc = valid(food_classifier, valid_loader, criterion)
+        valid_loss, valid_acc = valid(food_classifier, valid_loader, criterion, epoch)
         tqdm.write("validation loss: {:.4f}, acc: {:.4f}".format(valid_loss, valid_acc))
         if valid_acc > best_acc:
             best_acc = valid_acc
-            test(food_classifier, test_loader)
+            test(food_classifier, test_loader, best_acc, epoch)
             food_classifier.save_checkpoint()
             #img_encoder.save_checkpoint()
 
