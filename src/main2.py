@@ -67,14 +67,15 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                 label = torch.reshape(labels.data, (labels.data.size()[0], 1))
                 total_correct += torch.sum(label == predictions)
                 predictions = predictions.cpu().numpy()
-                top3 = ""
-                path = paths[0][paths[0].find("val\\"):paths[0].find(".jpg") + 4]
+
                 for i in range(len(predictions)):
+                    top3 = ""
+                    path = paths[i][paths[i].find("train\\"):paths[i].find(".jpg") + 4]
                     for j in range(len(predictions[i])):
                         top3 += str(predictions[i][j])
                         if j < len(predictions[i]) - 1:
                             top3 += " "
-                writer.writerow([path, top3])
+                    writer.writerow([path, top3])
 
             epoch_loss = total_loss / len(loader.dataset)
             epoch_acc = total_correct.double() / len(loader.dataset)
@@ -103,13 +104,14 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                     label = torch.reshape(labels.data, (labels.data.size()[0], 1))
                     total_correct += torch.sum(label == predictions)
                     predictions = predictions.cpu().numpy()
-                    top3 = ""
-                    path = paths[0][paths[0].find("val\\"):paths[0].find(".jpg") + 4]
                     for i in range(len(predictions)):
+                        top3 = ""
+                        path = paths[i][paths[i].find("val\\"):paths[i].find(".jpg") + 4]
                         for j in range(len(predictions[i])):
                             top3 += str(predictions[i][j])
                             if j < len(predictions[i]) - 1:
                                 top3 += " "
+                        writer.writerow([path, top3])
                     writer.writerow([path, top3])
             epoch_loss = total_loss / len(loader.dataset)
             epoch_acc = total_correct.double() / len(loader.dataset)
@@ -135,13 +137,14 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                     #_, predictions = torch.topk(outputs, 3, dim=-1)
                     _, predictions = torch.topk(pred, 3, dim=-1)
                     predictions = predictions.cpu().numpy()
-                    top3 = ""
-                    path = paths[0][paths[0].find("test_"):paths[0].find(".jpg") + 4]
                     for i in range(len(predictions)):
+                        top3 = ""
+                        path = paths[i][paths[i].find("test_"):paths[i].find(".jpg") + 4]
                         for j in range(len(predictions[i])):
                             top3 += str(predictions[i][j])
                             if j < len(predictions[i]) - 1:
                                 top3 += " "
+                        writer.writerow([path, top3])
                     writer.writerow([path, top3])
 
     best_acc = 0.0
