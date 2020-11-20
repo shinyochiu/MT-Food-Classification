@@ -6,7 +6,12 @@ class ImageFolderWithPaths(datasets.ImageFolder):
     """Custom dataset that includes image file paths. Extends
     torchvision.datasets.ImageFolder
     """
-
+    # reorder the label of data set
+    def __init__(self, root, transform):
+        super(ImageFolderWithPaths, self).__init__(root, transform)
+        for key, _ in self.class_to_idx.items():
+            if key != 'test':
+                self.class_to_idx[key] = int(key)
     # override the __getitem__ method. this is the method that dataloader calls
     def __getitem__(self, index):
         # this is what ImageFolder normally returns
@@ -15,6 +20,7 @@ class ImageFolderWithPaths(datasets.ImageFolder):
         path = self.imgs[index][0]
         # make a new tuple that includes original and the path
         tuple_with_path = (original_tuple + (path,))
+
         return tuple_with_path
 
 def load_data(data_dir = "../data/", input_size = 224, batch_size = 36):
@@ -46,12 +52,11 @@ def load_data(data_dir = "../data/", input_size = 224, batch_size = 36):
         ])
     }
 
-    image_dataset_train = ImageFolderWithPaths(os.path.join(data_dir,'train'), data_transforms['train'])
-    image_dataset_valid = ImageFolderWithPaths(os.path.join(data_dir,'val'), data_transforms['valid'])
+    image_dataset_train = ImageFolderWithPaths(os.path.join(data_dir, 'train'), data_transforms['train'])
+    image_dataset_valid = ImageFolderWithPaths(os.path.join(data_dir, 'val'), data_transforms['valid'])
     image_dataset_test = ImageFolderWithPaths(os.path.join(data_dir, 'test'), data_transforms['test'])
 
     train_loader = DataLoader(image_dataset_train, batch_size=batch_size, shuffle=True, num_workers=4)
     valid_loader = DataLoader(image_dataset_valid, batch_size=batch_size, shuffle=False, num_workers=4)
     test_loader = DataLoader(image_dataset_test, batch_size=1, shuffle=False, num_workers=4)
-
     return train_loader, valid_loader, test_loader
