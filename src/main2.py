@@ -70,9 +70,10 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                 top3 = ""
                 path = paths[0][paths[0].find("val\\"):paths[0].find(".jpg") + 4]
                 for i in range(len(predictions)):
-                    top3 += str(predictions[i])
-                    if i < len(predictions[i]) - 1:
-                        top3 += " "
+                    for j in range(len(predictions[i])):
+                        top3 += str(predictions[i][j])
+                        if j < len(predictions[i]) - 1:
+                            top3 += " "
                 writer.writerow([path, top3])
 
             epoch_loss = total_loss / len(loader.dataset)
@@ -104,11 +105,11 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                     predictions = predictions.cpu().numpy()
                     top3 = ""
                     path = paths[0][paths[0].find("val\\"):paths[0].find(".jpg") + 4]
-
                     for i in range(len(predictions)):
-                        top3 += str(predictions[i])
-                        if i < len(predictions[i]) - 1:
-                            top3 += " "
+                        for j in range(len(predictions[i])):
+                            top3 += str(predictions[i][j])
+                            if j < len(predictions[i]) - 1:
+                                top3 += " "
                     writer.writerow([path, top3])
             epoch_loss = total_loss / len(loader.dataset)
             epoch_acc = total_correct.double() / len(loader.dataset)
@@ -137,9 +138,10 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                     top3 = ""
                     path = paths[0][paths[0].find("test_"):paths[0].find(".jpg") + 4]
                     for i in range(len(predictions)):
-                        top3 += str(predictions[i])
-                        if i < len(predictions[i]) - 1:
-                            top3 += " "
+                        for j in range(len(predictions[i])):
+                            top3 += str(predictions[i][j])
+                            if j < len(predictions[i]) - 1:
+                                top3 += " "
                     writer.writerow([path, top3])
 
     best_acc = 0.0
