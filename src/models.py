@@ -42,7 +42,7 @@ class MTFoodClassify(nn.Module):
         self.architecture = architecture
         self.encoder_dir = os.path.join(encoder_dir)
         self.model_dir = os.path.join(model_dir)
-
+        '''
         if self.architecture == 'resnet18':
             model_ft = models.resnet18(pretrained=True)
             self.dim = 512
@@ -55,6 +55,7 @@ class MTFoodClassify(nn.Module):
         mod = list(model_ft.children())
         mod.pop()
         self.features = nn.Sequential(*mod)
+        '''
         self.model = models.resnet50(pretrained=True)
         self.fc1 = nn.Linear(2048, 2048)
         self.fc2 = nn.Linear(2048, self.out_dims)
