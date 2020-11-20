@@ -14,14 +14,13 @@ class ImageFolderWithPaths(datasets.ImageFolder):
                 self.class_to_idx[key] = int(key)
     # override the __getitem__ method. this is the method that dataloader calls
     def __getitem__(self, index):
-        # this is what ImageFolder normally returns
-        original_tuple = super(ImageFolderWithPaths, self).__getitem__(index)
-        # the image file path
-        path = self.imgs[index][0]
-        # make a new tuple that includes original and the path
-        tuple_with_path = (original_tuple + (path,))
+        path, target = self.imgs[index]
+        sample = self.loader(path)
+        if self.transform is not None:
+            sample = self.transform(sample)
+            target = int(path[path.rfind("\\")+1:path.rfind("_")])
 
-        return tuple_with_path
+        return sample, target, path
 
 def load_data(data_dir = "../data/", input_size = 224, batch_size = 36):
     data_transforms = {
