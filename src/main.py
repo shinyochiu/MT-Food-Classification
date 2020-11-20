@@ -11,7 +11,7 @@ import numpy as np
 import csv
 import data_reorganization
 from models import MTFoodClassify, MTFoodFeature
-
+from datetime import datetime
 def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch Food Image Retrieval Training')
     parser.add_argument('--architecture', type=str, default='resnet101')
@@ -71,7 +71,7 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
         total_loss = 0.0
         total_correct = 0
         food_classifier.eval()
-        with open(arglist.data_dir + 'valid.csv', 'w', newline='') as outfile:
+        with open(arglist.data_dir + 'valid' + datetime.now().isoformat(timespec='minutes') + '.csv', 'w', newline='') as outfile:
             writer = csv.writer(outfile)
             writer.writerow(['id', 'predicted'])
             for inputs, labels, paths in tqdm(valid_loader, desc="valid"):
@@ -88,7 +88,7 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                 label = torch.reshape(labels.data, (labels.data.size()[0], 1))
                 total_correct += torch.sum(label == predictions)
                 top3 = ""
-                path = paths[0][paths[0].find("test_"):paths[0].find(".jpg") + 4]
+                path = paths[0][paths[0].find("val\\"):paths[0].find(".jpg") + 4]
                 for i in range(len(predictions[0])):
                     top3 += str(predictions[0][i])
                     if i < len(predictions[0]) - 1:
@@ -104,7 +104,7 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
         # img_encoder.load_checkpoint()
         food_classifier.eval()
         # img_encoder.eval()
-        with open(arglist.data_dir + 'test.csv', 'w', newline='') as outfile:
+        with open(arglist.data_dir + 'test' + datetime.now().isoformat(timespec='minutes') + '.csv', 'w', newline='') as outfile:
             writer = csv.writer(outfile)
             writer.writerow(['id', 'predicted'])
             for inputs, labels, paths in tqdm(test_loader, desc="test"):
