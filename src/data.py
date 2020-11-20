@@ -18,7 +18,8 @@ class ImageFolderWithPaths(datasets.ImageFolder):
         sample = self.loader(path)
         if self.transform is not None:
             sample = self.transform(sample)
-            target = int(path[path.rfind("\\")+1:path.rfind("_")])
+            if path[path.rfind("\\")+1:path.rfind("_")] != 'test':
+                target = int(path[path.rfind("\\")+1:path.rfind("_")])
 
         return sample, target, path
 
