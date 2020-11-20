@@ -71,7 +71,7 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
         total_loss = 0.0
         total_correct = 0
         food_classifier.eval()
-        with open(arglist.data_dir + 'valid_{}_'.format(str(best_acc)) + datetime.now().isoformat(timespec='minutes') + '.csv', 'w', newline='') as outfile:
+        with open(arglist.data_dir + 'valid_{}_'.format(str(int(100*best_acc))) + datetime.now().isoformat(timespec='minutes') + '.csv', 'w', newline='') as outfile:
             writer = csv.writer(outfile)
             writer.writerow(['id', 'predicted'])
             for inputs, labels, paths in tqdm(valid_loader, desc="valid"):
@@ -104,7 +104,7 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
         # img_encoder.load_checkpoint()
         food_classifier.eval()
         # img_encoder.eval()
-        with open(arglist.data_dir + 'test_{}_'.format(str(best_acc)) + datetime.now().isoformat(timespec='minutes') + '.csv', 'w', newline='') as outfile:
+        with open(arglist.data_dir + 'test_{}_'.format(str(int(100*best_acc))) + datetime.now().isoformat(timespec='minutes') + '.csv', 'w', newline='') as outfile:
             writer = csv.writer(outfile)
             writer.writerow(['id', 'predicted'])
             for inputs, labels, paths in tqdm(test_loader, desc="test"):
