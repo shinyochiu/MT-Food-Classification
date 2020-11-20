@@ -56,7 +56,7 @@ class MTFoodClassify(nn.Module):
         mod.pop()
         self.features = nn.Sequential(*mod)
         '''
-        self.model = models.resnet50(pretrained=True)
+        self.model = models.resnet101(pretrained=True)
         self.fc1 = nn.Linear(2048, 2048)
         self.fc2 = nn.Linear(2048, self.out_dims)
         self.dropout = nn.Dropout(0.3)
