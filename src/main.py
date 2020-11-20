@@ -55,7 +55,7 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
             outputs = food_classifier(inputs)
             loss = criterion(outputs, labels)
             pred = torch.softmax(outputs, dim=-1)
-            _, predictions = torch.topk(pred, 3)
+            _, predictions = torch.topk(outputs, 3, dim=-1)
             loss.backward()
             food_classifier.optimizer.step()
 
@@ -83,12 +83,12 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                 outputs = food_classifier(inputs)
                 loss = criterion(outputs, labels)
                 pred = torch.softmax(outputs, dim=-1)
-                _, predictions = torch.topk(pred, 3)
+                _, predictions = torch.topk(outputs, 3, dim=-1)
                 total_loss += loss.item() * inputs.size(0)
                 label = torch.reshape(labels.data, (labels.data.size()[0], 1))
                 total_correct += torch.sum(label == predictions)
                 top3 = ""
-                path = paths[0][paths[0].find("val"):paths[0].find(".jpg") + 4]
+                path = paths[0][paths[0].find("val\\"):paths[0].find(".jpg") + 4]
                 for i in range(len(predictions[0])):
                     top3 += str(predictions[0][i])
                     if i < len(predictions[0]) - 1:
@@ -114,7 +114,7 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                 # features = torch.reshape(features, (-1, arglist.input_size))
                 outputs = food_classifier(inputs)
                 pred = torch.softmax(outputs, dim=-1)
-                _, predictions = torch.topk(pred, 3)
+                _, predictions = torch.topk(outputs, 3, dim=-1)
                 predictions = predictions.cpu().numpy()
                 top3 = ""
                 path = paths[0][paths[0].find("test_"):paths[0].find(".jpg") + 4]
