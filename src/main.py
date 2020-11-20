@@ -88,7 +88,7 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                 label = torch.reshape(labels.data, (labels.data.size()[0], 1))
                 total_correct += torch.sum(label == predictions)
                 top3 = ""
-                path = paths[0][paths[0].find("val\\"):paths[0].find(".jpg") + 4]
+                path = paths[0][paths[0].find("val"):paths[0].find(".jpg") + 4]
                 for i in range(len(predictions[0])):
                     top3 += str(predictions[0][i])
                     if i < len(predictions[0]) - 1:
