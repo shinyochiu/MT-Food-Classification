@@ -46,26 +46,37 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
         total_loss = 0.0
         total_correct = 0
         classifier.train()
-        for inputs, labels, _ in tqdm(loader, desc="train"):
-            inputs = inputs.to(classifier.device)
-            labels = labels.to(classifier.device)
-            classifier.optimizer.zero_grad()
-            #features = extract_feat(img_encoder, inputs)
-            #features = torch.reshape(features, (-1, arglist.input_size))
-            outputs = classifier(inputs)
-            loss = crit(outputs, labels)
-            pred = torch.softmax(outputs, dim=-1)
-            _, predictions = torch.topk(outputs, 3, dim=-1)
-            #_, predictions = torch.topk(pred, 3, dim=-1)
-            loss.backward()
-            classifier.optimizer.step()
+        with open(arglist.data_dir + 'train_epoch_{}'.format(epoch) + '.csv', 'w', newline='') as outfile:
+            writer = csv.writer(outfile)
+            writer.writerow(['id', 'predicted'])
+            for inputs, labels, paths in tqdm(loader, desc="train"):
+                inputs = inputs.to(classifier.device)
+                labels = labels.to(classifier.device)
+                classifier.optimizer.zero_grad()
+                #features = extract_feat(img_encoder, inputs)
+                #features = torch.reshape(features, (-1, arglist.input_size))
+                outputs = classifier(inputs)
+                loss = crit(outputs, labels)
+                pred = torch.softmax(outputs, dim=-1)
+                #_, predictions = torch.topk(outputs, 3, dim=-1)
+                _, predictions = torch.topk(pred, 3, dim=-1)
+                loss.backward()
+                classifier.optimizer.step()
 
-            total_loss += loss.item() * inputs.size(0)
-            label = torch.reshape(labels.data, (labels.data.size()[0], 1))
-            total_correct += torch.sum(label == predictions)
+                total_loss += loss.item() * inputs.size(0)
+                label = torch.reshape(labels.data, (labels.data.size()[0], 1))
+                total_correct += torch.sum(label == predictions)
+                predictions = predictions.cpu().numpy()
+                top3 = ""
+                path = paths[0][paths[0].find("val\\"):paths[0].find(".jpg") + 4]
+                for i in range(len(predictions)):
+                    top3 += str(predictions[i])
+                    if i < len(predictions[i]) - 1:
+                        top3 += " "
+                writer.writerow([path, top3])
 
-        epoch_loss = total_loss / len(loader.dataset)
-        epoch_acc = total_correct.double() / len(loader.dataset)
+            epoch_loss = total_loss / len(loader.dataset)
+            epoch_acc = total_correct.double() / len(loader.dataset)
         return epoch_loss, epoch_acc.item()
 
     def valid(classifier, loader, crit):
@@ -85,17 +96,18 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                     outputs = classifier(inputs)
                     loss = crit(outputs, labels)
                     pred = torch.softmax(outputs, dim=-1)
-                    _, predictions = torch.topk(outputs, 3, dim=-1)
-                    #_, predictions = torch.topk(pred, 3, dim=-1)
+                    #_, predictions = torch.topk(outputs, 3, dim=-1)
+                    _, predictions = torch.topk(pred, 3, dim=-1)
                     total_loss += loss.item() * inputs.size(0)
                     label = torch.reshape(labels.data, (labels.data.size()[0], 1))
                     total_correct += torch.sum(label == predictions)
                     predictions = predictions.cpu().numpy()
                     top3 = ""
                     path = paths[0][paths[0].find("val\\"):paths[0].find(".jpg") + 4]
-                    for i in range(len(predictions[0])):
-                        top3 += str(predictions[0][i])
-                        if i < len(predictions[0]) - 1:
+
+                    for i in range(len(predictions)):
+                        top3 += str(predictions[i])
+                        if i < len(predictions[i]) - 1:
                             top3 += " "
                     writer.writerow([path, top3])
             epoch_loss = total_loss / len(loader.dataset)
@@ -119,14 +131,14 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                     # features = torch.reshape(features, (-1, arglist.input_size))
                     outputs = classifier(inputs)
                     pred = torch.softmax(outputs, dim=-1)
-                    _, predictions = torch.topk(outputs, 3, dim=-1)
-                    #_, predictions = torch.topk(pred, 3, dim=-1)
+                    #_, predictions = torch.topk(outputs, 3, dim=-1)
+                    _, predictions = torch.topk(pred, 3, dim=-1)
                     predictions = predictions.cpu().numpy()
                     top3 = ""
                     path = paths[0][paths[0].find("test_"):paths[0].find(".jpg") + 4]
-                    for i in range(len(predictions[0])):
-                        top3 += str(predictions[0][i])
-                        if i < len(predictions[0]) - 1:
+                    for i in range(len(predictions)):
+                        top3 += str(predictions[i])
+                        if i < len(predictions[i]) - 1:
                             top3 += " "
                     writer.writerow([path, top3])
 
