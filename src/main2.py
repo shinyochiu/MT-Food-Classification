@@ -111,7 +111,6 @@ def valid(classifier, loader, crit, epoch):
                         if j < len(predictions[i]) - 1:
                             top3 += " "
                     writer.writerow([path, top3])
-                writer.writerow([path, top3])
         epoch_loss = total_loss / len(loader.dataset)
         epoch_acc = total_correct.double() / len(loader.dataset)
     return epoch_loss, epoch_acc.item()
