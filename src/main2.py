@@ -144,7 +144,6 @@ def test(classifier, loader, best_acc, epoch):
                         if j < len(predictions[i]) - 1:
                             top3 += " "
                     writer.writerow([path, top3])
-                writer.writerow([path, top3])
 
 def train_model(food_classifier, train_loader, valid_loader, test_loader, criterion, num_epochs=20):
     best_acc = 0.0
