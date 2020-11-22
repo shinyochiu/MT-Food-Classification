@@ -102,7 +102,7 @@ def valid(classifier, loader, crit, epoch, id):
         writer.writerow(['id', 'predicted'])
         with torch.no_grad():
             i = 0
-            for inputs, labels, paths in tqdm(loader, desc="valid"):
+            for inputs, labels, paths in tqdm(loader, desc="valid", mininterval=10):
                 
                 # if i > 0:
                 #     break
@@ -167,7 +167,7 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                 multi_test=False, id=1, lr_decay=False):
     best_acc = 0.0
     scheduler = torch.optim.lr_scheduler.StepLR(food_classifier.optimizer, step_size=arglist.step_size, gamma=arglist.gamma)
-    for epoch in tqdm(range(num_epochs), desc="epoch", position=0, leave=True):
+    for epoch in tqdm(range(num_epochs), desc="epoch", position=0, leave=True, mininterval=10):
         #print('epoch:{:d}/{:d}'.format(epoch, num_epochs))
         #print('*' * 100)
         train_loss, train_acc = train(food_classifier, train_loader, criterion, epoch, id)
@@ -201,7 +201,7 @@ def test_model(food_classifier, test_loader, id):
     with open(arglist.data_dir + 'test_id_{}.csv'.format(id), 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['id', 'predicted'])
-        for inputs, labels, paths in tqdm(test_loader, desc="test"):
+        for inputs, labels, paths in tqdm(test_loader, desc="test", mininterval=10):
             inputs = inputs.to(food_classifier.device)
             food_classifier.optimizer.zero_grad()
             # features = extract_feat(img_encoder, inputs)
