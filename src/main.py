@@ -33,6 +33,9 @@ def parse_args():
     parser.add_argument("--cuda", type=int, default=1, help="serial number of gpu")
     parser.add_argument("--multi_test", type=bool, default=False, help="if true, test data set will also be evaluated if validation accuracy improves")
     parser.add_argument("--id", type=int, default=1, help="the name of this test")
+    parser.add_argument("--step_size", type=int, default=5, help="the step size of the scheduler")
+    parser.add_argument("--gamma", type=int, default=0.65, help="the gamma of the scheduler")
+    parser.add_argument("--lr_decay", type=bool, default=False, help="whether to use lr decay")
 
     return parser.parse_args()
 
@@ -44,14 +47,21 @@ def extract_feat(img_encoder, inputs):
     outputs = img_encoder(inputs)
     return outputs
 
-def train(classifier, loader, crit, epoch):
+def train(classifier, loader, crit, epoch, id):
     total_loss = 0.0
     total_correct = 0
     classifier.train()
-    with open(arglist.data_dir + 'train_epoch_{}'.format(epoch) + '.csv', 'w', newline='') as outfile:
+    i = 0
+    with open(arglist.data_dir + 'train_id_{}_epoch_{}'.format(id, epoch) + '.csv', 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['id', 'predicted'])
+        
         for inputs, labels, paths in tqdm(loader, desc="train"):
+            
+            # if i > 0:
+            #     break
+            # i = 1
+
             inputs = inputs.to(classifier.device)
             labels = labels.to(classifier.device)
             classifier.optimizer.zero_grad()
@@ -83,15 +93,21 @@ def train(classifier, loader, crit, epoch):
         epoch_acc = total_correct.double() / len(loader.dataset)
     return epoch_loss, epoch_acc.item()
 
-def valid(classifier, loader, crit, epoch):
+def valid(classifier, loader, crit, epoch, id):
     total_loss = 0.0
     total_correct = 0
     classifier.eval()
-    with open(arglist.data_dir + 'valid_epoch_{}'.format(epoch) + '.csv', 'w', newline='') as outfile:
+    with open(arglist.data_dir + 'valid_id_{}_epoch_{}'.format(id, epoch) + '.csv', 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['id', 'predicted'])
         with torch.no_grad():
+            i = 0
             for inputs, labels, paths in tqdm(loader, desc="valid"):
+                
+                # if i > 0:
+                #     break
+                # i = 1
+
                 inputs = inputs.to(classifier.device)
                 labels = labels.to(classifier.device)
                 classifier.optimizer.zero_grad()
@@ -124,7 +140,7 @@ def test(classifier, loader, best_acc, epoch, id):
     # img_encoder.load_checkpoint()
     classifier.eval()
     # img_encoder.eval()
-    with open(arglist.data_dir + 'test_id_{}_acc_{}_epoch_{}'.format(str(int(100*best_acc)), str(epoch)) + '.csv', 'w', newline='') as outfile:
+    with open(arglist.data_dir + 'test_id_{}_acc_{}_epoch_{}'.format(id, str(int(100*best_acc)), str(epoch)) + '.csv', 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['id', 'predicted'])
         with torch.no_grad():
@@ -147,19 +163,25 @@ def test(classifier, loader, best_acc, epoch, id):
                             top3 += " "
                     writer.writerow([path, top3])
 
-def train_model(food_classifier, train_loader, valid_loader, test_loader, criterion, num_epochs=20, multi_test=False, id=1):
+def train_model(food_classifier, train_loader, valid_loader, test_loader, criterion, num_epochs=20, 
+                multi_test=False, id=1, lr_decay=False):
     best_acc = 0.0
+    scheduler = torch.optim.lr_scheduler.StepLR(food_classifier.optimizer, step_size=arglist.step_size, gamma=arglist.gamma)
     for epoch in tqdm(range(num_epochs), desc="epoch", position=0, leave=True):
         #print('epoch:{:d}/{:d}'.format(epoch, num_epochs))
         #print('*' * 100)
-        train_loss, train_acc = train(food_classifier, train_loader, criterion, epoch)
-        tqdm.write("training loss: {:.4f}, acc: {:.4f}".format(train_loss, train_acc))
-        valid_loss, valid_acc = valid(food_classifier, valid_loader, criterion, epoch)
-        tqdm.write("validation loss: {:.4f}, acc: {:.4f}".format(valid_loss, valid_acc))
+        train_loss, train_acc = train(food_classifier, train_loader, criterion, epoch, id)
+        tqdm.write("\nepoch: {}, training loss: {:.4f}, acc: {:.4f}".format(epoch, train_loss, train_acc))
+        valid_loss, valid_acc = valid(food_classifier, valid_loader, criterion, epoch, id)
+        tqdm.write("\nepoch: {}, validation loss: {:.4f}, acc: {:.4f}".format(epoch,valid_loss, valid_acc))
+        if lr_decay:
+            scheduler.step()
+            tqdm.write("\nepoch: {}, lr = {:.8f}".format(epoch, scheduler.get_lr()[0]))
+
         if valid_acc > best_acc:
             
             if multi_test:
-                if valid_acc > 0.7 and valid_acc - best_acc > 0.01:
+                if valid_acc > 0.7 and valid_acc - best_acc > 0.001:
                     test(food_classifier, test_loader, valid_acc, epoch, id)
 
             best_acc = valid_acc
@@ -176,7 +198,7 @@ def test_model(food_classifier, test_loader, id):
     # img_encoder.load_checkpoint()
     food_classifier.eval()
     # img_encoder.eval()
-    with open(arglist.data_dir + 'test_id_{}.csv'.format(), 'w', newline='') as outfile:
+    with open(arglist.data_dir + 'test_id_{}.csv'.format(id), 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['id', 'predicted'])
         for inputs, labels, paths in tqdm(test_loader, desc="test"):
@@ -213,16 +235,20 @@ if __name__ == '__main__':
     #img_encoder = MTFoodFeature(arglist.architecture, arglist.encoder_dir)
     #img_encoder.eval()
     #img_encoder.cuda()
-    food_classifier = MTFoodClassify(lr=arglist.lr, inpt_dims=arglist.input_size, fc1_dims=arglist.layer1_size, out_dims=arglist.num_classes, architecture=arglist.architecture, encoder_dir=arglist.encoder_dir, model_dir=arglist.model_dir)
+    food_classifier = MTFoodClassify(lr=arglist.lr, inpt_dims=arglist.input_size, fc1_dims=arglist.layer1_size, 
+    out_dims=arglist.num_classes, architecture=arglist.architecture, encoder_dir=arglist.encoder_dir, model_dir=arglist.model_dir)
     #food_classifier.cuda()
 
     ## loss function
     criterion = nn.CrossEntropyLoss()
+    
 
     if arglist.training:
         # test data set will also be evaluated if validation accuracy improves
         train_model(food_classifier, train_loader, valid_loader, 
-        test_loader, criterion, num_epochs=arglist.num_epochs, multi_test=arglist.multi_test, id=arglist.id)
+        test_loader, criterion, num_epochs=arglist.num_epochs, multi_test=arglist.multi_test, 
+        id=arglist.id, lr_decay = arglist.lr_decay)
+
         test_model(food_classifier, test_loader, id=arglist.id)
     else:
         # testing only
