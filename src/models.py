@@ -56,39 +56,46 @@ class MTFoodClassify(nn.Module):
         mod.pop()
         self.features = nn.Sequential(*mod)
         '''
-        self.model = models.resnet101(pretrained=True)
-        self.model.load_state_dict(model_zoo.load_url(FEATURES[self.architecture], model_dir=self.model_dir))
         self.fc1 = nn.Linear(2048, 2048)
         self.fc2 = nn.Linear(2048, self.out_dims)
         self.dropout = nn.Dropout(0.3)
         self.out = nn.Linear(self.inpt_dims, self.out_dims)
 
-        #self.initialization()
+        self.initialization()
 
         self.optimizer = optim.SGD(self.parameters(), lr=lr, momentum=0.9)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         self.to(self.device)
         print("image classifying on device: ", self.device)
 
+    def initialization(self):
+        net_in = getattr(models, self.architecture)(pretrained=True)
+        # take only convolutions for features,
+        # always ends with ReLU to make last activations non-negative
+        if self.architecture.startswith('alexnet'):
+            features = list(net_in.features.children())[:-1]
+        elif self.architecture.startswith('vgg'):
+            features = list(net_in.features.children())[:-1]
+        elif self.architecture.startswith('resnet'):
+            features = list(net_in.children())[:-1]
+        elif self.architecture.startswith('densenet'):
+            features = list(net_in.features.children())
+            features.append(nn.ReLU(inplace=True))
+        elif self.architecture.startswith('squeezenet'):
+            features = list(net_in.features.children())
+        else:
+            raise ValueError('Unsupported or unknown architecture: {}!'.format(self.architecture))
+
+        self.model = nn.Sequential(*features)
+        print(">> {}: for '{}' custom pretrained features '{}' are used"
+              .format(os.path.basename(__file__), self.architecture, os.path.basename(FEATURES[self.architecture])))
+        self.model.load_state_dict(model_zoo.load_url(FEATURES[self.architecture], model_dir=self.encoder_dir))
+
     def forward(self, img_inputs):
-        #out = self.fc1(img_inputs)
-        #out = F.leaky_relu(out)
-        x = self.model.conv1(img_inputs)
-        x = self.model.bn1(x)
-        x = self.model.relu(x)
-        x = self.model.maxpool(x)
-
-        x = self.model.layer1(x)
-        x = self.model.layer2(x)
-        x = self.model.layer3(x)
-        x = self.model.layer4(x)
-        x = self.model.avgpool(x)
-
-        x = x.view(x.size(0), -1)
-        x = nn.functional.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = self.fc2(x)
-        return x
+        img_features = self.model(img_inputs)
+        img_features = img_features.view(img_features.size(0), -1)
+        out = self.out(img_features)
+        return out
 
     def save_checkpoint(self):
         print("...saving checkpoint....")
