@@ -47,16 +47,17 @@ class MTFoodClassify(nn.Module):
             model_ft = models.resnet18(pretrained=True)
             self.dim = 512
         if self.architecture == 'resnet50':
-            self.model = models.resnet50(pretrained=True)
+            model_ft = models.resnet50(pretrained=True)
         if self.architecture == 'resnet101':
-            self.model = models.resnet101(pretrained=True)
+            model_ft = models.resnet101(pretrained=True)
         if self.architecture == 'resnet152':
-            self.model = models.resnet152(pretrained=True)
+            model_ft = models.resnet152(pretrained=True)
         mod = list(model_ft.children())
         mod.pop()
         self.features = nn.Sequential(*mod)
         '''
         self.model = models.resnet101(pretrained=True)
+        self.model.load_state_dict(model_zoo.load_url(FEATURES[self.architecture], model_dir=self.model_dir))
         self.fc1 = nn.Linear(2048, 2048)
         self.fc2 = nn.Linear(2048, self.out_dims)
         self.dropout = nn.Dropout(0.3)
