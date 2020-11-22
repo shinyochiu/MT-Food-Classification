@@ -23,7 +23,7 @@ def parse_args():
                         help="directory in which training data ")
     parser.add_argument("--encoder_dir", type=str, default="../encoder/", help="directory in which pretrained feature extract model should be saved")
     parser.add_argument("--model_dir", type=str, default="../model/", help="directory in which training state and model should be saved")
-    parser.add_argument("--training", type=bool, default=True, help="training flag")
+    parser.add_argument("--training", type=int, default=1, help="training flag")
     parser.add_argument("--num_epochs", type=int, default=20, help="number of training epochs")
     parser.add_argument("--num_classes", type=int, default=1000, help="number of data classes")
     parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for Adam optimizer")
@@ -31,11 +31,11 @@ def parse_args():
     parser.add_argument("--input_size", type=int, default=2048, help="number of inputs to the classifier")
     parser.add_argument("--layer1_size", type=int, default=64, help="number of units in the classifier")
     parser.add_argument("--cuda", type=int, default=1, help="serial number of gpu")
-    parser.add_argument("--multi_test", type=bool, default=False, help="if true, test data set will also be evaluated if validation accuracy improves")
+    parser.add_argument("--multi_test", type=int, default=0, help="if true, test data set will also be evaluated if validation accuracy improves")
     parser.add_argument("--id", type=int, default=1, help="the name of this test")
     parser.add_argument("--step_size", type=int, default=5, help="the step size of the scheduler")
     parser.add_argument("--gamma", type=int, default=0.65, help="the gamma of the scheduler")
-    parser.add_argument("--lr_decay", type=bool, default=False, help="whether to use lr decay")
+    parser.add_argument("--lr_decay", type=int, default=0, help="whether to use lr decay")
 
     return parser.parse_args()
 
@@ -178,6 +178,8 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
             scheduler.step()
             tqdm.write("\nepoch: {}, lr = {:.8f}".format(epoch, scheduler.get_lr()[0]))
 
+        test(food_classifier, test_loader, valid_acc, epoch, id)
+
         if valid_acc > best_acc:
             
             if multi_test:
@@ -187,14 +189,14 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
             best_acc = valid_acc
 
 
-            food_classifier.save_checkpoint()
+            food_classifier.save_checkpoint(id)
             #img_encoder.save_checkpoint()
 
 
 def test_model(food_classifier, test_loader, id):
     from tqdm import tqdm
-    print("testing")
-    food_classifier.load_checkpoint()
+    print("testinghhh")
+    food_classifier.load_checkpoint(id)
     # img_encoder.load_checkpoint()
     food_classifier.eval()
     # img_encoder.eval()
@@ -218,6 +220,11 @@ def test_model(food_classifier, test_loader, id):
                     top3 += " "
             writer.writerow([path, top3])
 if __name__ == '__main__':
+
+    # print(arglist.training)
+    # print(arglist.cuda)
+    # print(arglist.multi_test)
+    # print('-------------------------------------------------------------------')
     random.seed(0)
     torch.cuda.empty_cache()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(arglist.cuda)
@@ -242,7 +249,6 @@ if __name__ == '__main__':
     ## loss function
     criterion = nn.CrossEntropyLoss()
     
-
     if arglist.training:
         # test data set will also be evaluated if validation accuracy improves
         train_model(food_classifier, train_loader, valid_loader, 
