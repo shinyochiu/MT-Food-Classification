@@ -23,7 +23,7 @@ class ImageFolderWithPaths(datasets.ImageFolder):
 
         return sample, target, path
 
-def load_data(data_dir = "../data/", input_size = 224, batch_size = 36):
+def load_data(data_dir = "../data/", input_size = 224, batch_size = 36, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
     data_transforms = {
         'train': transforms.Compose([
             #transforms.Resize(input_size),
@@ -32,7 +32,9 @@ def load_data(data_dir = "../data/", input_size = 224, batch_size = 36):
             transforms.CenterCrop(224),
             # transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            transforms.Normalize(mean, std)
+
         ]),
         'valid': transforms.Compose([
             # transforms.Resize(input_size),
@@ -40,7 +42,9 @@ def load_data(data_dir = "../data/", input_size = 224, batch_size = 36):
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            transforms.Normalize(mean, std)
+
         ]),
         'test': transforms.Compose([
             # transforms.Resize(input_size),
@@ -48,7 +52,9 @@ def load_data(data_dir = "../data/", input_size = 224, batch_size = 36):
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            transforms.Normalize(mean, std)
+
         ])
     }
 

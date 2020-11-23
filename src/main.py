@@ -13,6 +13,7 @@ import data_reorganization
 from models import MTFoodClassify, MTFoodFeature
 from datetime import datetime
 from tqdm import tqdm
+import time
 
 def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch Food Image Retrieval Training')
@@ -167,6 +168,8 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
                 multi_test=False, id=1, lr_decay=False):
     best_acc = 0.0
     scheduler = torch.optim.lr_scheduler.StepLR(food_classifier.optimizer, step_size=arglist.step_size, gamma=arglist.gamma)
+    start = time.time()
+    # print('%.1f s' % (time.time() - start))
     for epoch in tqdm(range(num_epochs), desc="epoch", position=0, leave=True):
         #print('epoch:{:d}/{:d}'.format(epoch, num_epochs))
         #print('*' * 100)
@@ -178,20 +181,21 @@ def train_model(food_classifier, train_loader, valid_loader, test_loader, criter
             scheduler.step()
             tqdm.write("\nepoch: {}, lr = {:.8f}".format(epoch, scheduler.get_lr()[0]))
 
-        test(food_classifier, test_loader, valid_acc, epoch, id)
+        # test(food_classifier, test_loader, valid_acc, epoch, id)
 
         if valid_acc > best_acc:
             
             if multi_test:
-                if valid_acc > 0.7 and valid_acc - best_acc > 0.001:
+                if valid_acc > 0.7 and valid_acc - best_acc > 0.005:
                     test(food_classifier, test_loader, valid_acc, epoch, id)
 
             best_acc = valid_acc
 
-
             food_classifier.save_checkpoint(id)
-            #img_encoder.save_checkpoint()
 
+            #img_encoder.save_checkpoint()
+        epoch_end = time.time()
+        print('%.1f s' % (epoch_end - start))
 
 def test_model(food_classifier, test_loader, id):
     from tqdm import tqdm
@@ -237,7 +241,8 @@ if __name__ == '__main__':
     data_reorganization.reorganize_data(data_path='../data', image_folder='train')
     data_reorganization.reorganize_data(data_path='../data', image_folder='val')
     data_reorganization.reorganize_data(data_path='../data', image_folder='test')
-    train_loader, valid_loader, test_loader = data.load_data(data_dir=arglist.data_dir, input_size=input_size, batch_size=arglist.batch_size)
+    train_loader, valid_loader, test_loader = data.load_data(data_dir=arglist.data_dir, 
+    input_size=input_size, batch_size=arglist.batch_size, mean=[0.6687, 0.5538, 0.4104], std=[0.2178, 0.2336, 0.2530])
     ## model initialization
     #img_encoder = MTFoodFeature(arglist.architecture, arglist.encoder_dir)
     #img_encoder.eval()
